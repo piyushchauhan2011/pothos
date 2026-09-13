@@ -1,5 +1,29 @@
 # Change Log
 
+## 4.17.0
+
+### Minor Changes
+
+- 269b554: Await async node ID resolvers before building a custom `findUnique`'s where.
+
+  `prismaNode`'s `id.resolve` is typed `MaybePromise`, but the fallback lookup handed its return
+  value straight to a custom `findUnique`. An async resolver meant the callback received a promise
+  where its own type promised a string, so `findUnique: (id) => ({ id: Number(id) })` built
+  `where: { id: NaN }` and the row failed to load. The model loader now waits for the where before
+  issuing the lookup, guarded so a synchronous resolver still issues its query in the same
+  microtask and batching is unchanged. A where that rejects fails only its own row; the rest of the
+  batch loads. A `findUnique` of your own may now return a promise.
+
+### Patch Changes
+
+- 263e092: Keep Decimal node ids exact instead of rounding them through a float when parsing
+- 7f4e1b0: Fix `relatedConnection` fields with a custom `resolve` when the parent row was not planned:
+  - The fallback planned its query from the connection wrapper type, which has no prisma model, so an unplanned parent threw `Expected UserPostsConnection to have a model` before the custom resolver ran. The field now records the node type, the `nodes`/`edges.node` paths and the cursor selection to seed, and the fallback plans from those.
+  - `totalCount` on the fallback branch had no count source and resolved `null` on a non-nullable `Int`. It is now counted from the parent, only when the document selects it, and reaches user-defined fields on the connection object as the same number the generated `totalCount` field gets. When the parent does not correspond to a row — which only a custom `resolve` can produce — the field now errors naming the field and model rather than reporting a count of `0`.
+  - `hasNextPage` was always `false` on the fallback branch, because the page size was read from the plan's selection map instead of the connection query, so the extra probe row was never sliced off.
+  - A `totalCount`-only selection no longer runs the custom `resolve` for rows it would discard, matching what the loaded path already did.
+  - @pothos/selection-mapper@0.1.0
+
 ## 4.16.0
 
 ### Minor Changes
