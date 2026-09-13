@@ -1,5 +1,25 @@
 # Change Log
 
+## 4.7.3
+
+### Patch Changes
+
+- b46c90c: Key node identity on the raw (pre-parse) global ID instead of the parsed `id`, so distinct
+  nodes whose `id.parse` results stringify alike no longer collapse onto one entity. Previously
+  `parse` results like `{ key: 1 }` and `{ key: 2 }` both became `Type:[object Object]`, and two
+  `Date`s in the same second both became the same key, so a `nodes` query could return the same
+  row twice. Cache keys are unchanged for nodes without an `id.parse`.
+
+  Also apply `id.parse` to node ids supplied to `t.node`/`t.nodeList` as a `GlobalIDShape`
+  (`{ id, type }`). That path previously skipped `parse` and handed `loadOne`/`loadMany` a raw
+  id, despite both being typed to receive the parsed `IDShape`.
+
+- 2a430b7: - Cap backward (`last`) page size against `maxSize` before deriving the start offset, so trimming keeps the last requested items
+  - Clamp offset windows to the size of the collection when a cursor points past the end of it: a stale `after` cursor no longer produces a negative limit and `hasNextPage: true`, and a stale `before` cursor now pages off the real end instead of returning an empty page
+  - Group node ids in a `Map` so node types named `constructor`, `toString`, etc. no longer throw when loaded
+  - Infer node types from readonly arrays returned by `resolveCursorConnection` resolvers instead of `never`
+  - Type the results of `resolveCursorConnection` and `resolveOffsetConnection` as nullable when their resolvers can return `null`, instead of non-null connections that threw on unguarded `.edges`. Resolvers typed `any` are unaffected
+
 ## 4.7.2
 
 ### Patch Changes
